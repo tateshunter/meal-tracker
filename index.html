@@ -10,12 +10,13 @@
     .form-group { margin-bottom: 1rem; }
     input, textarea, button { width: 100%; padding: 0.5rem; font-size: 1rem; margin-top: 0.25rem; }
     textarea { resize: vertical; }
-    .meal-log { margin-top: 2rem; }
-    .meal-entry { background: white; padding: 1rem; margin-bottom: 1rem; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .meal-entry h3 { margin: 0 0 0.5rem 0; color: #406e34; }
-    .meal-entry small { color: #666; }
-    .meal-entry textarea { margin-top: 0.5rem; }
-    .search-bar { margin: 1rem 0; }
+    .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; margin-top: 2rem; }
+    .day { background: white; padding: 0.5rem; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); min-height: 100px; cursor: pointer; position: relative; }
+    .day h4 { margin: 0; font-size: 0.9rem; color: #406e34; }
+    .day p { font-size: 0.85rem; margin: 0.3rem 0; }
+    .expanded { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); width: 90%; max-width: 400px; z-index: 10; }
+    .overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); z-index: 5; }
+    .close-btn { margin-top: 1rem; background: #e05a4f; }
   </style>
 </head>
 <body>
@@ -30,25 +31,24 @@
   </div>
   <button onclick="addMeal()">Add Meal</button>
 
-  <div class="search-bar">
-    <label for="searchDate">Search by Date</label>
-    <input type="date" id="searchDate" onchange="renderMeals()">
-  </div>
+  <div class="calendar" id="calendar"></div>
 
-  <div class="meal-log" id="mealLog"></div>
+  <div id="overlay" class="overlay" style="display:none;"></div>
+  <div id="expandedView" class="expanded" style="display:none;"></div>
 
   <script>
-    const mealLog = document.getElementById('mealLog');
+    const calendar = document.getElementById('calendar');
     const mealDate = document.getElementById('mealDate');
     const mealDesc = document.getElementById('mealDesc');
-    const searchDate = document.getElementById('searchDate');
+    const expandedView = document.getElementById('expandedView');
+    const overlay = document.getElementById('overlay');
 
     let meals = JSON.parse(localStorage.getItem('meals') || '[]');
 
     document.addEventListener('DOMContentLoaded', () => {
       const today = new Date().toISOString().split('T')[0];
       mealDate.value = today;
-      renderMeals();
+      renderCalendar();
     });
 
     function addMeal() {
@@ -58,7 +58,60 @@
       meals.push({ date, desc, notes: '' });
       localStorage.setItem('meals', JSON.stringify(meals));
       mealDesc.value = '';
-      renderMeals();
+      renderCalendar();
+    }
+
+    function renderCalendar() {
+      calendar.innerHTML = '';
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const lastDay = new Date(year, month + 1, 0);
+      const daysInMonth = lastDay.getDate();
+
+      for (let i = 1; i <= daysInMonth; i++) {
+        const dateStr = new Date(year, month, i).toISOString().split('T')[0];
+        const dayMeals = meals.filter(m => m.date === dateStr);
+
+        const div = document.createElement('div');
+        div.className = 'day';
+        div.innerHTML = `<h4>${i}</h4>`;
+        dayMeals.forEach(m => {
+          const p = document.createElement('p');
+          p.textContent = m.desc;
+          div.appendChild(p);
+        });
+
+        div.addEventListener('click', () => openExpanded(dateStr));
+        calendar.appendChild(div);
+      }
+    }
+
+    function openExpanded(dateStr) {
+      const dateMeals = meals.filter(m => m.date === dateStr);
+      expandedView.innerHTML = `<h2>Meals on ${dateStr}</h2>`;
+      dateMeals.forEach((meal, idx) => {
+        const index = meals.indexOf(meal);
+        const entry = document.createElement('div');
+        entry.innerHTML = `
+          <textarea rows="2" onchange="saveDesc(${index}, this)">${meal.desc || ''}</textarea>
+          <textarea rows="2" onchange="saveNotes(${index}, this)">${meal.notes || ''}</textarea>
+        `;
+        expandedView.appendChild(entry);
+      });
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'close-btn';
+      closeBtn.textContent = 'Close';
+      closeBtn.onclick = closeExpanded;
+      expandedView.appendChild(closeBtn);
+
+      overlay.style.display = 'block';
+      expandedView.style.display = 'block';
+    }
+
+    function closeExpanded() {
+      overlay.style.display = 'none';
+      expandedView.style.display = 'none';
     }
 
     function saveNotes(index, textarea) {
@@ -66,21 +119,10 @@
       localStorage.setItem('meals', JSON.stringify(meals));
     }
 
-    function renderMeals() {
-      const filterDate = searchDate.value;
-      mealLog.innerHTML = '';
-      const filtered = filterDate ? meals.filter(m => m.date === filterDate) : meals;
-      filtered.slice().reverse().forEach((meal, index) => {
-        const div = document.createElement('div');
-        div.className = 'meal-entry';
-        div.innerHTML = `
-          <h3>${meal.date}</h3>
-          <p>${meal.desc}</p>
-          <small>Notes:</small>
-          <textarea rows="2" onchange="saveNotes(${meals.indexOf(meal)}, this)">${meal.notes || ''}</textarea>
-        `;
-        mealLog.appendChild(div);
-      });
+    function saveDesc(index, textarea) {
+      meals[index].desc = textarea.value;
+      localStorage.setItem('meals', JSON.stringify(meals));
+      renderCalendar();
     }
   </script>
 </body>
