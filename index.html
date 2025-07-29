@@ -5,124 +5,259 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Meal Diary</title>
   <style>
-    body { font-family: sans-serif; background: #f5f5f5; padding: 2rem; }
-    h1 { color: #2a5d84; text-align: center; }
-    .form-group { margin-bottom: 1rem; }
-    input, textarea, button { width: 100%; padding: 0.5rem; font-size: 1rem; margin-top: 0.25rem; }
-    textarea { resize: vertical; }
-    .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; margin-top: 2rem; }
-    .day { background: white; padding: 0.5rem; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); min-height: 100px; cursor: pointer; position: relative; }
-    .day h4 { margin: 0; font-size: 0.9rem; color: #406e34; }
-    .day p { font-size: 0.85rem; margin: 0.3rem 0; }
-    .expanded { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); width: 90%; max-width: 400px; z-index: 10; }
-    .overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); z-index: 5; }
-    .close-btn { margin-top: 1rem; background: #e05a4f; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f9fafb; padding: 2rem; color: #333; }
+    h1 { color: #1f2937; text-align: center; margin-bottom: 1rem; }
+    .calendar-header {
+      display: flex; justify-content: center;
+      align-items: center; gap: 1rem;
+      margin: 2rem 0 1rem;
+    }
+    .calendar-header button {
+      width: auto; padding: 0.5rem 1rem;
+      background: #e5e7eb; color: #111827;
+      border: none; border-radius: 4px; cursor: pointer;
+    }
+    .calendar-header h2 { margin: 0; font-size: 1.5rem; }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 0.5rem;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .calendar > div:first-child:nth-last-child(n+7),
+    .calendar > div:first-child:nth-last-child(n+7) ~ div:nth-child(-n+7) {
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .day {
+      position: relative;
+      background: white;
+      padding: 0.5rem;
+      border-radius: 6px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      min-height: 100px;
+      cursor: pointer;
+    }
+    .day h4 {
+      margin: 0 0 0.25rem;
+      font-size: 0.95rem;
+      color: #2563eb;
+    }
+    .day p {
+      font-size: 0.85rem;
+      margin: 0.25rem 0;
+    }
+    .has-notes::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 0; height: 0;
+      border-top: 20px solid #2563eb;
+      border-left: 20px solid transparent;
+      border-top-right-radius: 6px;
+    }
+
+    .overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.4);
+      z-index: 5;
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+    .expanded {
+      position: relative;
+      background: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      width: 90%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow-y: auto;
+      z-index: 10;
+    }
+    .expanded img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin-top: 0.5rem;
+      border-radius: 4px;
+      max-height: 300px;
+      object-fit: contain;
+    }
+    .close-btn, .add-btn {
+      margin-top: 1rem;
+      padding: 0.5rem;
+      border-radius: 4px;
+      border: none;
+      color: white;
+      cursor: pointer;
+    }
+    .close-btn { background: #ef4444; }
+    .add-btn { background: #10b981; }
+    .entry-box {
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 0.5rem;
+    }
+    .entry-box textarea { margin-top: 0.25rem; }
   </style>
 </head>
 <body>
   <h1>🍲 Meal Diary</h1>
-  <div class="form-group">
-    <label for="mealDate">Date</label>
-    <input type="date" id="mealDate">
+  <div class="calendar-header">
+    <button onclick="changeMonth(-1)">&larr;</button>
+    <h2 id="monthYear"></h2>
+    <button onclick="changeMonth(1)">&rarr;</button>
   </div>
-  <div class="form-group">
-    <label for="mealDesc">Meal Description</label>
-    <textarea id="mealDesc" rows="3" placeholder="What did you eat?"></textarea>
+  <div class="calendar" id="calendar">
+    <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
   </div>
-  <button onclick="addMeal()">Add Meal</button>
 
-  <div class="calendar" id="calendar"></div>
-
-  <div id="overlay" class="overlay" style="display:none;"></div>
-  <div id="expandedView" class="expanded" style="display:none;"></div>
+  <div id="overlay" class="overlay">
+    <div id="expandedView" class="expanded"></div>
+  </div>
 
   <script>
     const calendar = document.getElementById('calendar');
-    const mealDate = document.getElementById('mealDate');
-    const mealDesc = document.getElementById('mealDesc');
     const expandedView = document.getElementById('expandedView');
     const overlay = document.getElementById('overlay');
-
+    const monthYear = document.getElementById('monthYear');
     let meals = JSON.parse(localStorage.getItem('meals') || '[]');
+    let current = new Date();
 
-    document.addEventListener('DOMContentLoaded', () => {
-      const today = new Date().toISOString().split('T')[0];
-      mealDate.value = today;
-      renderCalendar();
-    });
+    document.addEventListener('DOMContentLoaded', () => renderCalendar());
 
-    function addMeal() {
-      const date = mealDate.value;
-      const desc = mealDesc.value.trim();
-      if (!desc) return alert('Please enter a description.');
-      meals.push({ date, desc, notes: '' });
-      localStorage.setItem('meals', JSON.stringify(meals));
-      mealDesc.value = '';
+    function changeMonth(direction) {
+      current.setMonth(current.getMonth() + direction);
       renderCalendar();
     }
 
     function renderCalendar() {
-      calendar.innerHTML = '';
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth();
-      const lastDay = new Date(year, month + 1, 0);
-      const daysInMonth = lastDay.getDate();
+      calendar.innerHTML = `<div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>`;
+      const year = current.getFullYear();
+      const month = current.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const offset = firstDay.getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-      for (let i = 1; i <= daysInMonth; i++) {
-        const dateStr = new Date(year, month, i).toISOString().split('T')[0];
+      monthYear.textContent = `${firstDay.toLocaleString('default', { month: 'long' })} ${year}`;
+
+      for (let i = 0; i < offset; i++) {
+        const empty = document.createElement('div');
+        calendar.appendChild(empty);
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = new Date(year, month, day).toISOString().split('T')[0];
+        const box = document.createElement('div');
+        box.className = 'day';
+        box.innerHTML = `<h4>${day}</h4>`;
+
         const dayMeals = meals.filter(m => m.date === dateStr);
-
-        const div = document.createElement('div');
-        div.className = 'day';
-        div.innerHTML = `<h4>${i}</h4>`;
-        dayMeals.forEach(m => {
+        if (dayMeals.length > 0 && dayMeals[0].desc) {
           const p = document.createElement('p');
-          p.textContent = m.desc;
-          div.appendChild(p);
-        });
+          p.textContent = dayMeals[0].desc;
+          box.appendChild(p);
+        }
+        if (dayMeals.some(m => m.notes || m.img)) {
+          box.classList.add('has-notes');
+        }
 
-        div.addEventListener('click', () => openExpanded(dateStr));
-        calendar.appendChild(div);
+        box.onclick = () => openExpanded(dateStr);
+        calendar.appendChild(box);
       }
     }
 
     function openExpanded(dateStr) {
       const dateMeals = meals.filter(m => m.date === dateStr);
+      if (dateMeals.length === 0) {
+        meals.push({ date: dateStr, desc: '', notes: '', img: '' });
+        localStorage.setItem('meals', JSON.stringify(meals));
+      }
+
+      const updatedMeals = meals.filter(m => m.date === dateStr);
       expandedView.innerHTML = `<h2>Meals on ${dateStr}</h2>`;
-      dateMeals.forEach((meal, idx) => {
+
+      updatedMeals.forEach((meal, idx) => {
         const index = meals.indexOf(meal);
         const entry = document.createElement('div');
+        entry.className = 'entry-box';
         entry.innerHTML = `
+          <label>Meal:</label>
           <textarea rows="2" onchange="saveDesc(${index}, this)">${meal.desc || ''}</textarea>
+          <label>Notes:</label>
           <textarea rows="2" onchange="saveNotes(${index}, this)">${meal.notes || ''}</textarea>
+          <label>Upload Meal Photo:</label>
+          <input type="file" accept="image/*" onchange="saveImage(${index}, this)">
+          ${meal.img ? `<img src="${meal.img}" alt="Meal Image">` : ''}
+          <button onclick="deleteEntry(${index})">Delete</button>
         `;
         expandedView.appendChild(entry);
       });
+
+      const addBtn = document.createElement('button');
+      addBtn.className = 'add-btn';
+      addBtn.textContent = 'Add Another Entry';
+      addBtn.onclick = () => {
+        meals.push({ date: dateStr, desc: '', notes: '', img: '' });
+        localStorage.setItem('meals', JSON.stringify(meals));
+        openExpanded(dateStr);
+      };
+      expandedView.appendChild(addBtn);
+
       const closeBtn = document.createElement('button');
       closeBtn.className = 'close-btn';
       closeBtn.textContent = 'Close';
       closeBtn.onclick = closeExpanded;
       expandedView.appendChild(closeBtn);
 
-      overlay.style.display = 'block';
-      expandedView.style.display = 'block';
+      overlay.style.display = 'flex';
     }
 
     function closeExpanded() {
       overlay.style.display = 'none';
-      expandedView.style.display = 'none';
-    }
-
-    function saveNotes(index, textarea) {
-      meals[index].notes = textarea.value;
-      localStorage.setItem('meals', JSON.stringify(meals));
     }
 
     function saveDesc(index, textarea) {
       meals[index].desc = textarea.value;
       localStorage.setItem('meals', JSON.stringify(meals));
       renderCalendar();
+    }
+
+    function saveNotes(index, textarea) {
+      meals[index].notes = textarea.value;
+      localStorage.setItem('meals', JSON.stringify(meals));
+      renderCalendar();
+    }
+
+    function saveImage(index, input) {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        meals[index].img = e.target.result;
+        localStorage.setItem('meals', JSON.stringify(meals));
+        renderCalendar();
+        openExpanded(meals[index].date);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function deleteEntry(index) {
+      if (confirm('Delete this entry?')) {
+        meals.splice(index, 1);
+        localStorage.setItem('meals', JSON.stringify(meals));
+        renderCalendar();
+        closeExpanded();
+      }
     }
   </script>
 </body>
