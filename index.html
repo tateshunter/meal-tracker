@@ -18,7 +18,25 @@
       border: none; border-radius: 4px; cursor: pointer;
     }
     .calendar-header h2 { margin: 0; font-size: 1.5rem; }
-
+    .calendar-search {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 1rem;
+      gap: 0.5rem;
+    }
+    .calendar-search input {
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .calendar-search button {
+      padding: 0.5rem 1rem;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
     .calendar {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
@@ -26,13 +44,11 @@
       max-width: 1000px;
       margin: 0 auto;
     }
-
     .calendar > div:first-child:nth-last-child(n+7),
     .calendar > div:first-child:nth-last-child(n+7) ~ div:nth-child(-n+7) {
       font-weight: bold;
       text-align: center;
     }
-
     .day {
       position: relative;
       background: white;
@@ -60,7 +76,6 @@
       border-left: 20px solid transparent;
       border-top-right-radius: 6px;
     }
-
     .overlay {
       position: fixed;
       top: 0; left: 0;
@@ -112,6 +127,10 @@
 </head>
 <body>
   <h1>🍲 Meal Diary</h1>
+  <div class="calendar-search">
+    <input type="date" id="searchDate">
+    <button onclick="searchByDate()">Search</button>
+  </div>
   <div class="calendar-header">
     <button onclick="changeMonth(-1)">&larr;</button>
     <h2 id="monthYear"></h2>
@@ -120,16 +139,15 @@
   <div class="calendar" id="calendar">
     <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
   </div>
-
   <div id="overlay" class="overlay">
     <div id="expandedView" class="expanded"></div>
   </div>
-
   <script>
     const calendar = document.getElementById('calendar');
     const expandedView = document.getElementById('expandedView');
     const overlay = document.getElementById('overlay');
     const monthYear = document.getElementById('monthYear');
+    const searchDate = document.getElementById('searchDate');
     let meals = JSON.parse(localStorage.getItem('meals') || '[]');
     let current = new Date();
 
@@ -138,6 +156,11 @@
     function changeMonth(direction) {
       current.setMonth(current.getMonth() + direction);
       renderCalendar();
+    }
+
+    function searchByDate() {
+      const date = searchDate.value;
+      if (date) openExpanded(date);
     }
 
     function renderCalendar() {
